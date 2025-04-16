@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Summarizer</title>
+    <!-- Add PDF.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #8A2BE2; /* Blue Violet */
+            --secondary-color: #6A1B9A; /* Dark Purple */
+            --accent-color: #D8BFD8; /* Light Purple */
+            --light-bg: #F3E5F5; /* Soft Lavender */
+            --dark-text: #1A1A2E; /* Deep Dark Blue */
+            --light-text: #ffffff;
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --shadow: 0 8px 20px rgba(138, 43, 226, 0.2);
+            --border-radius: 12px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease-in-out;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--light-bg) 40%, #B39DDB);
+            color: var(--dark-text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
+        
+        .header-logo {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            width: 100px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 25px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease-in-out;
+            animation: floatLogo 3s infinite ease-in-out;
+            z-index: 100;
+        }
+
+        @keyframes floatLogo {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .logo {
+            width: 80%;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+
+        .container {
+            max-width: 850px;
+            background: var(--glass-bg);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            width: 30%;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .upload-section {
+            padding: 30px;
+            text-align: center;
+            border: 3px dashed var(--accent-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            background: rgba(216, 191, 216, 0.12);
+            cursor: pointer;
+            transition: 0.3s ease-in-out;
+        }
+        
+        .upload-section:hover {
+            border-color: var(--primary-color);
+            background: rgba(216, 191, 216, 0.2);
+            transform: scale(1.02);
+        }
+        
+        .upload-section.highlight {
+            border-color: var(--secondary-color);
+            background: rgba(216, 191, 216, 0.3);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: var(--primary-color);
+            color: var(--light-text);
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(138, 43, 226, 0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .upload-btn:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(106, 27, 154, 0.3);
+        }
+        
+        .processing-indicator {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-left-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 15px auto;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .summary-section {
+            display: none;
+            margin-top: 20px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            text-align: justify;
+        }
+        
+        .document-info {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 1rem;
+        }
+        
+        .summary-content {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            color: var(--dark-text);
+            text-align: justify;
+        }
+        
+        .section-container-summary {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .section-container {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .section-title {
+            text-align: justify;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .error {
+            color: #d32f2f;
+            margin-top: 12px;
+            padding: 12px;
+            background: #ffebee;
+            border-radius: 6px;
+            font-weight: 500;
+            display: none;
+            border-left: 5px solid #d32f2f;
+        }
+        
+        button {
+            outline: none;
+            margin: 10px;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        @media (max-width: 1180px) {
+            .container {
+                max-width: 90%;
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 1098px) {
+            .container {
+                margin-top: 60px;
+                max-width: 90%;
+                padding: 20px;
+            }
+
+            .header-logo{
+                left: 45%;
+                transform: translateX(-55%);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+                flex-direction: column;
+            }
+        
+            .container {
+                padding: 15px;
+                width: 100%;
+            }
+        
+            .header-logo {
+                width: 70px;
+                height: 35px;
+                left: 45%;
+                transform: translateX(-55%);
+            }
+            header {
+                width: 70%;
+            }
+        
+            h1 {
+                font-size: 1.8rem;
+            }
+        
+            .upload-section {
+                padding: 20px;
+            }
+        
+            .upload-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+                flex-direction: column;
+            }
+        
+            .container {
+                padding: 15px;
+                width: 100%;
+            }
+        
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            header {
+                width: 70%;
+            }
+        
+            .upload-section {
+                padding: 15px;
+            }
+        
+            .upload-btn {
+                padding: 8px 16px;
+                font-size: 0.8rem;
+            }
+        
+            .header-logo {
+                width: 60px;
+                height: 30px;
+                left: 10px;
+                top: 10px;
+                left: 45%;
+                transform: translateX(-55%);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-logo">
+        <div class="logo">
+            <img src="https://media-hosting.imagekit.io//dab49624aa934235/logo-we360.png?Expires=1837153317&Key-Pair-Id=K2ZIVPTIP2VGHC&Signature=Dw1YZG2OXRDxqERlYJlWhiOfNiGyw-DXQby2VAfFFScKMUHUumiBjs8Ib7-0uVg0NW8csbgY9KuHRNuXlycZoCCIqHjv9LTdHb06QrfAttxCoEKpMLg2Yo-TqocxyVPQfFaNKF2C9vzCcSpYZueovgVbw7kmqncciIrvC1MEDURAOcGUrdp4mSbaLTofqWgoDJVvSTekl~1FYQCnTeS-Rca1uxdZ8jfcElooLCFKorrB1TRXXsaz8DBuvAER1L12Osu20WQcPT~~jg7g5P0UcLn23Ndz2srhyP~ChG59G~3Qh-eg5aRMmq~YAxWNQX-shRR-h42QdhyLHHSDi18gsA__"
+                alt="Company Logo">
+        </div>
+    </div>
+    <header>
+        <h1>Document Summarizer</h1>
+        <p>Upload a document to generate a comprehensive analysis</p>
+    </header>
+
+    <div class="container">
+        <div class="upload-section" id="upload-area">
+            <h2>Upload Document</h2>
+            <p>Supported formats: PDF, TXT, DOCX, CSV</p>
+            <p>Drop your file here or</p>
+            <input type="file" class="file-input" id="file-input" accept=".pdf,.txt,.docx,.csv">
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()">Select File</button>
+        </div>
+
+        <div class="error" id="error-message"></div>
+
+        <div class="processing-indicator" id="processing-indicator">
+            <div class="spinner"></div>
+            <p>Processing your document... This may take a moment.</p>
+        </div>
+
+        <div class="summary-section" id="summary-section">
+            <div class="document-info">
+                <h3 id="document-name">Document Name</h3>
+                <p id="document-details">Details</p>
+            </div>
+            
+            <div class="section-container-summary">
+                <h2 class="section-title">Summary</h2>
+                <div class="summary-content" id="summary-content"></div>
+            </div>
+            
+            <div class="section-container">
+                <h2 class="section-title">Key Points</h2>
+                <div class="summary-content" id="key-points-content"></div>
+            </div>
+            
+            <div class="section-container">
+                <h2 class="section-title">Insights & Analysis</h2>
+                <div class="summary-content" id="insights-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set worker path for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+        
+        // API Configuration
+        const YOUR_API_KEY = "AIzaSyAD3AEqnnNoLuvB86xM8YY7dcJ361hs9wg";
+        const endpoint = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${YOUR_API_KEY}`;
+
+        // DOM Elements
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const processingIndicator = document.getElementById('processing-indicator');
+        const summarySection = document.getElementById('summary-section');
+        const documentName = document.getElementById('document-name');
+        const documentDetails = document.getElementById('document-details');
+        const summaryContent = document.getElementById('summary-content');
+        const keyPointsContent = document.getElementById('key-points-content');
+        const insightsContent = document.getElementById('insights-content');
+        const errorMessage = document.getElementById('error-message');
+
+        // Event Listeners for drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            uploadArea.classList.add('highlight');
+        }
+
+        function unhighlight() {
+            uploadArea.classList.remove('highlight');
+        }
+
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                processFile(this.files[0]);
+            }
+        });
+
+        async function processFile(file) {
+            // Validate file type
+            const validTypes = [
+                'application/pdf', 
+                'text/plain', 
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'text/csv',
+                'application/csv'
+            ];
+            if (!validTypes.includes(file.type) && 
+                !file.name.endsWith('.pdf') && 
+                !file.name.endsWith('.txt') && 
+                !file.name.endsWith('.docx') &&
+                !file.name.endsWith('.csv')) {
+                showError("Please upload a PDF, TXT, DOCX, or CSV file");
+                return;
+            }
+
+            showProcessing();
+            hideError();
+            
+            try {
+                // Extract text from the document
+                const text = await extractText(file);
+                
+                if (!text || text.trim() === '') {
+                    throw new Error("Could not extract text from the document");
+                }
+
+                // Check if it's a bank statement and process accordingly
+                const isBankStatement = detectBankStatement(text, file.name);
+                let summaryData;
+                
+                if (isBankStatement) {
+                    // Process as bank statement
+                    summaryData = await processBankStatement(text);
+                } else {
+                    // Process as regular document
+                    summaryData = await generateSummary(text);
+                }
+                
+                // Display results
+                displaySummary(file, summaryData);
+            } catch (error) {
+                showError(error.message || "An error occurred while processing your document");
+                hideProcessing();
+            }
+        }
+
+        async function extractText(file) {
+            return new Promise((resolve, reject) => {
+                if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+                    // For text files
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        resolve(e.target.result);
+                    };
+                    reader.onerror = function() {
+                        reject(new Error('Failed to read text file'));
+                    };
+                    reader.readAsText(file);
+                } else if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                    // For CSV files (bank statements)
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const csvText = e.target.result;
+                            const formattedText = formatCsvAsText(csvText);
+                            resolve(formattedText);
+                        } catch (error) {
+                            reject(new Error(`Failed to parse CSV: ${error.message}`));
+                        }
+                    };
+                    reader.onerror = function() {
+                        reject(new Error('Failed to read CSV file'));
+                    };
+                    reader.readAsText(file);
+                } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                    // For PDF files using PDF.js
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        try {
+                            const typedArray = new Uint8Array(e.target.result);
+                            const pdfDoc = await pdfjsLib.getDocument({data: typedArray}).promise;
+                            const numPages = pdfDoc.numPages;
+                            let fullText = '';
+                            
+                            // Extract text from each page
+                            for (let i = 1; i <= numPages; i++) {
+                                const page = await pdfDoc.getPage(i);
+                                const textContent = await page.getTextContent();
+                                const pageText = textContent.items.map(item => item.str).join(' ');
+                                fullText += pageText + '\n\n';
+                            }
+                            
+                            // If it looks like a bank statement PDF, do additional processing
+                            if (isProbablyBankStatementPdf(fullText)) {
+                                fullText = improveBankStatementPdfText(fullText);
+                            }
+                            
+                            resolve(fullText);
+                        } catch (error) {
+                            reject(new Error(`Failed to parse PDF: ${error.message}`));
+                        }
+                    };
+                    reader.onerror = function() {
+                        reject(new Error('Failed to read PDF file'));
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    // For DOCX files
+                    reject(new Error("DOCX parsing requires specialized libraries. For this demo, please use a TXT or PDF file instead."));
+                }
+            });
+        }
+
+        // Helper function to format CSV as readable text
+        function formatCsvAsText(csvText) {
+            try {
+                // Split by lines and parse
+                const lines = csvText.split('\n');
+                if (lines.length <= 1) {
+                    return "CSV file appears to be empty or invalid.";
+                }
+                
+                // Try to detect header row
+                const headerRow = lines[0].split(',');
+                
+                // Format as structured text
+                let result = "Bank Statement Summary\n\n";
+                
+                // Add headers
+                result += "Headers: " + headerRow.join(', ') + "\n\n";
+                
+                // Add transaction summary
+                result += `Total Transactions: ${lines.length - 1}\n`;
+                
+                // Look for date, description and amount columns
+                const dateColIndex = headerRow.findIndex(col => 
+                    col.toLowerCase().includes('date') || col.toLowerCase().includes('time'));
+                const descColIndex = headerRow.findIndex(col => 
+                    col.toLowerCase().includes('desc') || col.toLowerCase().includes('narration') || 
+                    col.toLowerCase().includes('particular'));
+                const amountColIndex = headerRow.findIndex(col => 
+                    col.toLowerCase().includes('amount') || col.toLowerCase().includes('debit') || 
+                    col.toLowerCase().includes('credit'));
+                
+                // Add sample transactions (limited to 20)
+                result += "\nSample Transactions:\n";
+                const sampleSize = Math.min(20, lines.length - 1);
+                for (let i = 1; i <= sampleSize; i++) {
+                    if (!lines[i] || lines[i].trim() === '') continue;
+                    
+                    const cells = lines[i].split(',');
+                    result += `Transaction ${i}: `;
+                    
+                    if (dateColIndex >= 0 && cells[dateColIndex]) {
+                        result += `Date: ${cells[dateColIndex]}, `;
+                    }
+                    
+                    if (descColIndex >= 0 && cells[descColIndex]) {
+                        result += `Description: ${cells[descColIndex]}, `;
+                    }
+                    
+                    if (amountColIndex >= 0 && cells[amountColIndex]) {
+                        result += `Amount: ${cells[amountColIndex]}`;
+                    }
+                    
+                    result += "\n";
+                }
+                
+                return result;
+            } catch (error) {
+                console.error("Error formatting CSV:", error);
+                return csvText; // Return original CSV text if formatting fails
+            }
+        }
+
+        // Check if text matches patterns found in bank statements
+        function detectBankStatement(text, filename) {
+            const bankKeywords = [
+                'account summary', 'account statement', 'transaction history', 
+                'opening balance', 'closing balance', 'statement period',
+                'credit', 'debit', 'withdrawal', 'deposit', 'transaction date'
+            ];
+            
+            // Check filename for bank statement indicators
+            const filenameCheck = filename.toLowerCase().includes('statement') || 
+                                 filename.toLowerCase().includes('bank') ||
+                                 filename.toLowerCase().includes('account');
+            
+            // Check content for bank statement indicators
+            const textLower = text.toLowerCase();
+            const keywordMatches = bankKeywords.filter(keyword => textLower.includes(keyword));
+            
+            // If filename suggests it's a statement or we found multiple banking keywords
+            return filenameCheck || keywordMatches.length >= 2;
+        }
+
+        // Improve PDF text extraction specifically for bank statements
+        function isProbablyBankStatementPdf(text) {
+            // Common patterns in bank statements
+            const patterns = [
+                /balance/i, /transaction/i, /deposit/i, /withdrawal/i, 
+                /statement period/i, /account number/i, /opening balance/i,
+                /closing balance/i, /date/i, /description/i, /amount/i
+            ];
+            
+            // Count how many patterns match
+            const matchCount = patterns.filter(pattern => pattern.test(text)).length;
+            
+            // If more than 3 patterns match, it's likely a bank statement
+            return matchCount >= 3;
+        }
+
+        // Clean up and structure bank statement PDF text
+        function improveBankStatementPdfText(text) {
+            // Replace multiple spaces with a single space
+            let improved = text.replace(/\s{2,}/g, ' ');
+            
+            // Try to detect and format transaction lines
+            // This is a simplified approach - real implementation would be more complex
+            improved = improved.replace(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+([A-Za-z0-9\s\-]+)\s+(\$?\d+[\.,]\d{2})/g, 
+                                      'Transaction: Date: $1, Description: $2, Amount: $3\n');
+            
+            return improved;
+        }
+
+        // Process text specifically for bank statements
+        async function processBankStatement(text) {
+            try {
+                const prompt = `This is a bank statement. Create a comprehensive analysis with these sections:
+                
+                1. SUMMARY: Analyze this bank statement including account info, date range, starting/ending balances if available
+                2. KEY POINTS: Create a bulleted HTML list (<ul><li>) of important financial insights, including:
+                   - Total deposits
+                   - Total withdrawals
+                   - Largest transactions
+                   - Recurring transactions/patterns
+                   - Any unusual activity
+                3. INSIGHTS: Financial analysis including spending patterns, savings rate, budget recommendations
+                
+                Format with clear headers. Don't include duplicate sections. Here's the statement: ${text}`;
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [{ text: prompt }]
+                            }
+                        ],
+                        generationConfig: {
+                            temperature: 0.2,
+                            topP: 0.8,
+                            topK: 40
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || "Failed to analyze bank statement");
+                }
+
+                const data = await response.json();
+                const resultText = data.candidates[0].content.parts[0].text;
+                
+                return parseDetailedSummary(resultText);
+            } catch (error) {
+                throw new Error(`Bank statement analysis failed: ${error.message}`);
+            }
+        }
+
+        async function generateSummary(text) {
+            try {
+                // Truncate text if too long
+                const maxLength = 30000;
+                const truncatedText = text.length > maxLength ? 
+                    text.substring(0, maxLength) + "... [text truncated due to length]" : 
+                    text;
+                
+                const prompt = `Create a comprehensive analysis of this document with the following sections:
+                    
+                1. SUMMARY: A thorough summary of the entire document (minimum 200-250 words)
+                2. KEY POINTS: Create a bulleted list (using proper HTML <ul><li> tags) of the most important points from the document
+                3. INSIGHTS: Analysis and implications of the document content
+                
+                Format each section clearly with headers. Don't include duplicate sections. Here's the document: ${truncatedText}`;
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [{ text: prompt }]
+                            }
+                        ],
+                        generationConfig: {
+                            temperature: 0.2,
+                            topP: 0.8,
+                            topK: 40
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || "Failed to get summary from Gemini API");
+                }
+
+                const data = await response.json();
+                const resultText = data.candidates[0].content.parts[0].text;
+                
+                // Parse the sections
+                return parseDetailedSummary(resultText);
+            } catch (error) {
+                throw new Error(`AI summarization failed: ${error.message}`);
+            }
+        }
+        
+        function parseDetailedSummary(text) {
+            // Simple parsing logic for the sections
+            const sections = {
+                summary: "",
+                keyPoints: "",
+                insights: ""
+            };
+            
+            // Look for section markers
+            const summaryMatch = text.match(/SUMMARY:?([\s\S]*?)(?=## KEY POINTS|KEY POINTS:|$)/i);
+            const keyPointsMatch = text.match(/(?:## KEY POINTS|KEY POINTS:)([\s\S]*?)(?=## INSIGHTS|INSIGHTS:|$)/i);
+            const insightsMatch = text.match(/(?:## INSIGHTS|INSIGHTS:)([\s\S]*?)$/i);
+            
+            if (summaryMatch && summaryMatch[1]) sections.summary = summaryMatch[1].trim();
+            if (keyPointsMatch && keyPointsMatch[1]) sections.keyPoints = keyPointsMatch[1].trim();
+            if (insightsMatch && insightsMatch[1]) sections.insights = insightsMatch[1].trim();
+            
+            // If no sections were found, put all text in summary
+            if (!sections.summary && !sections.keyPoints && !sections.insights) {
+                const parts = text.split('\n\n');
+                if (parts.length >= 3) {
+                    sections.summary = parts[0];
+                    sections.keyPoints = parts[1];
+                    sections.insights = parts.slice(2).join('\n\n');
+                } else {
+                    sections.summary = text;
+                }
+            }
+            
+            // Format key points as HTML bullet list if not already formatted
+            if (sections.keyPoints && !sections.keyPoints.includes('<ul>')) {
+                // Convert Markdown-style bullet points to HTML bullet points
+                let formattedPoints = sections.keyPoints
+                    // Remove any "Key Points:" header if it exists
+                    .replace(/^Key Points:?\s*/i, '')
+                    // Convert **Point** to proper bullet point
+                    .replace(/\*\*(.*?)\*\*/g, '$1')
+                    // Split by lines or bullet points
+                    .split(/\n\s*[\*\-•]\s*|\n\s*\d+\.\s*/)
+                    .filter(point => point.trim().length > 0);
+                
+                // Create HTML bullet list
+                sections.keyPoints = '<ul>\n' + 
+                    formattedPoints.map(point => `<li>${point.trim()}</li>`).join('\n') +
+                    '\n</ul>';
+            }
+            
+            return sections;
+        }
+
+        function displaySummary(file, summaryData) {
+            documentName.textContent = file.name;
+            documentDetails.textContent = `${formatFileSize(file.size)} • ${new Date().toLocaleDateString()}`;
+            
+            // Display all sections
+            summaryContent.textContent = summaryData.summary;
+            
+            // For key points, use innerHTML to render HTML bullet points
+            keyPointsContent.innerHTML = summaryData.keyPoints;
+            
+            insightsContent.textContent = summaryData.insights;
+            document.querySelector('header').style.display = 'none';
+            
+            hideProcessing();
+            summarySection.style.display = 'block';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            else return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function showProcessing() {
+            processingIndicator.style.display = 'block';
+        }
+
+        function hideProcessing() {
+            processingIndicator.style.display = 'none';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
