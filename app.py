@@ -57,7 +57,7 @@ def setup_driver(headless=False):
     
     # If on Windows, prioritize Edge
     if system == "Windows":
-        browsers = ["edge", "chrome", "firefox"]
+        browsers = ["chrome", "edge", "firefox"]
     # If on macOS, include Safari
     elif system == "Darwin":
         browsers = ["chrome", "safari", "firefox", "edge"]
